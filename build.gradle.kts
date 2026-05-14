@@ -6,6 +6,7 @@ plugins {
 val vaadinVersion by extra("25.1.5")
 val springModulithVersion by extra("2.0.6")
 val tikaVersion by extra("3.3.0")
+val langChain4JVersion by extra("1.14.1-beta24")
 
 group = "be.rubikub"
 version = "0.0.1-SNAPSHOT"
@@ -25,16 +26,25 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("com.vaadin:vaadin-spring-boot-starter")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
-    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
-    developmentOnly("com.vaadin:vaadin-dev")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-spring-boot-starter
+    implementation("dev.langchain4j:langchain4j-spring-boot-starter:$langChain4JVersion")
+    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-agentic
+    implementation("dev.langchain4j:langchain4j-agentic:$langChain4JVersion")
+    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-open-ai-spring-boot-starter
+    testImplementation("dev.langchain4j:langchain4j-open-ai-spring-boot-starter:$langChain4JVersion")
+    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-http-client-jdk
+    runtimeOnly("dev.langchain4j:langchain4j-http-client-jdk:1.14.1")
+
     // Source: https://mvnrepository.com/artifact/org.apache.tika/tika-core
     implementation("org.apache.tika:tika-core:$tikaVersion")
     // Source: https://mvnrepository.com/artifact/org.apache.tika/tika-parsers-standard-package
     implementation("org.apache.tika:tika-parsers-standard-package:$tikaVersion")
-//    implementation("org.apache.pdfbox:pdfbox:3.0.7")
 
+    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    developmentOnly("com.vaadin:vaadin-dev")
 }
 dependencyManagement {
     imports {

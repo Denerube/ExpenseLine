@@ -104,3 +104,12 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/gradle
+
+# Created by https://www.toptal.com/developers/gitignore/api/vaadin
+# Edit at https://www.toptal.com/developers/gitignore?templates=vaadin
+
+### Vaadin ###
+.vaadin-designer
+.designer
+
+# End of https://www.toptal.com/developers/gitignore/api/vaadin
