@@ -6,7 +6,8 @@ plugins {
 val vaadinVersion by extra("25.1.5")
 val springModulithVersion by extra("2.0.6")
 val tikaVersion by extra("3.3.0")
-val langChain4JVersion by extra("1.14.1-beta24")
+val langChain4JVersionBeta by extra("1.14.1-beta24")
+val langChain4JVersion by extra("1.14.1")
 
 group = "be.rubikub"
 version = "0.0.1-SNAPSHOT"
@@ -27,13 +28,16 @@ dependencies {
     implementation("com.vaadin:vaadin-spring-boot-starter")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-spring-boot-starter
-    implementation("dev.langchain4j:langchain4j-spring-boot-starter:$langChain4JVersion")
+    implementation("dev.langchain4j:langchain4j-spring-boot-starter:$langChain4JVersionBeta")
     // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-agentic
-    implementation("dev.langchain4j:langchain4j-agentic:$langChain4JVersion")
-    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-open-ai-spring-boot-starter
-    testImplementation("dev.langchain4j:langchain4j-open-ai-spring-boot-starter:$langChain4JVersion")
+    implementation("dev.langchain4j:langchain4j-agentic:$langChain4JVersionBeta")
+
     // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-http-client-jdk
-    runtimeOnly("dev.langchain4j:langchain4j-http-client-jdk:1.14.1")
+    implementation("dev.langchain4j:langchain4j-http-client-jdk:$langChain4JVersion")
+    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-http-client-jdk
+    runtimeOnly("dev.langchain4j:langchain4j-http-client-jdk:$langChain4JVersion")
+    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-open-ai
+    implementation("dev.langchain4j:langchain4j-open-ai:$langChain4JVersion")
 
     // Source: https://mvnrepository.com/artifact/org.apache.tika/tika-core
     implementation("org.apache.tika:tika-core:$tikaVersion")
