@@ -1,5 +1,6 @@
 package be.rubikub.expenseline.intake.internal;
 
+import be.rubikub.expenseline.costumEvents.TextExtractedEvent;
 import be.rubikub.expenseline.intake.IntakeProcessorPublic;
 
 import org.apache.tika.Tika;
@@ -10,6 +11,7 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.xml.sax.SAXException;
 
@@ -20,6 +22,12 @@ import java.io.IOException;
 class IntakeProcessor implements IntakeProcessorPublic {
 
     private final Tika tika = new Tika();
+    private final ApplicationEventPublisher events;
+
+    IntakeProcessor(ApplicationEventPublisher events) {
+        this.events = events;
+    }
+
 
     @Override
     public void processFile(byte[] bytes, String fileType) {
@@ -30,8 +38,15 @@ class IntakeProcessor implements IntakeProcessorPublic {
             text = extractText(bytes, fileType);
         } catch (TikaException | IOException | SAXException e) {
             IO.println("Error processing PDF: " + e.getMessage());
+            text = "";
         }
-        IO.println(text);
+        if (!text.isBlank()) {
+            publicExtractedTest(text,fileType);
+        }
+    }
+
+    private void publicExtractedTest(String text, String fileType){
+        events.publishEvent(new TextExtractedEvent(text,"test"));
     }
 
      private String extractText (byte[] bytes, String contentType) throws TikaException, IOException, SAXException  {

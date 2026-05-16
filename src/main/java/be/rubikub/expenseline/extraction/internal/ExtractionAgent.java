@@ -4,27 +4,68 @@ package be.rubikub.expenseline.extraction.internal;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
-import dev.langchain4j.service.spring.AiService;
 
-@AiService
 interface ExtractionAgent {
+    
     @SystemMessage("""
-        You are a document classifier. Your only job is to determine whether 
-        the provided text comes from a receipt, invoice, or expense-related document.
+        You are a document classifier. Determine if this is a receipt/invoice/expense/proof of payment or purchase document.
+
+        Look for: merchant name, date, items, prices, totals, VAT/BTW/tax (any language).
+
+        Respond with EXACTLY one of these values (no formatting, no markdown, no extra text):
         
-        A receipt-style document typically contains: merchant name, date, line items 
-        with prices, totals, VAT/tax amounts, or payment method.
-        
-        Respond with ONLY true or false — no explanation.
+        OK
+        NOK
+        NEEDS_REVIEW
         """)
-    @UserMessage("Is this a receipt-style document?\n\n{{text}}")
-    boolean isReceipt(@V("text") String text);
+    @UserMessage("Classify this document:\n\n{{text}}")
+    ClassificationResult classifyDocument(@V("text") String text);
+    
+    @SystemMessage("""
+        Extract receipt data in JSON format. Find these fields:
+
+        Required: merchant, date, total,items,amount of items,VAT,customer_name
+        Optional: customer_number, store_number,bank_details,metadata
+
+        Rules:
+        - Use exact values from the text
+        - If a field is missing, omit it from JSON
+        - Accept any language
+        - Use ISO date format (YYYY-MM-DD) when possible
+
+        Output valid JSON only.
+        """)
+    @UserMessage("Extract data from:\n\n{{text}}")
+    String extract(@V("text") String text);
 
     @SystemMessage("""
-        You are an expense clerk extracting structured data from receipt text 
-        for expense claim processing. Extract only what is present — never invent values.
+        You are a quality assessor. Review the extracted data and determine if it contains
+        the minimum required information for expense processing.
+
+        Required fields: merchant/vendor name, date, total amount
+        Recommended fields: VAT/BTW, line items with prices
+
+        Evaluate if the extraction is:
+        - COMPLETE: All required fields present and values look correct, pay extra attention to the price and if it matches the total amount of items times price per item
+        also pay attention the VAT is correct
+        - INCOMPLETE: Missing required fields or values seem incorrect/ambiguous
+
+        Respond with EXACTLY one word (no formatting, no markdown, no extra text):
+        COMPLETE
+        INCOMPLETE
         """)
-    @UserMessage("Extract the expense data from this receipt:\n\n{{text}}")
-    String extract(@V("text") String text);
+    @UserMessage("""
+        Original document text:
+        {{originalText}}
+
+        Extracted data:
+        {{extractedData}}
+
+        Is this extraction complete?
+        """)
+    ExtractionConfidence assessExtraction(
+            @V("originalText") String originalText,
+            @V("extractedData") String extractedData
+    );
 
 }
