@@ -3,6 +3,8 @@ package be.rubikub.expenseline.costumEvents.models;
 
 import java.math.BigDecimal;
 import java.util.List;
+import dev.langchain4j.model.output.structured.Description;
+
 
 public record ReceiptItem(BigDecimal amount,
                           @Description("the VAT")

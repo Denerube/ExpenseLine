@@ -9,6 +9,8 @@ val tikaVersion by extra("3.3.0")
 val langChain4JVersionBeta by extra("1.14.1-beta24")
 val langChain4JVersion by extra("1.14.1")
 
+val doclingVersion by extra("0.6.1")
+
 group = "be.rubikub"
 version = "0.0.1-SNAPSHOT"
 description = "ExpenseLine"
@@ -44,11 +46,25 @@ dependencies {
     // Source: https://mvnrepository.com/artifact/org.apache.tika/tika-parsers-standard-package
     implementation("org.apache.tika:tika-parsers-standard-package:$tikaVersion")
 
+    //docling
+    implementation("ai.docling:docling-core:$doclingVersion")
+    implementation("ai.docling:docling-serve-api:$doclingVersion")
+    implementation("ai.docling:docling-serve-client:$doclingVersion")
+//    implementation ("io.arconia:arconia-docling-spring-boot-starter")
+
+
+    // Source: https://mvnrepository.com/artifact/tools.jackson.core/jackson-core
+    implementation("tools.jackson.core:jackson-core:3.2.2")
+
+
+
+
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     developmentOnly("com.vaadin:vaadin-dev")
+
 }
 dependencyManagement {
     imports {

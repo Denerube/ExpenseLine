@@ -1,6 +1,6 @@
 package be.rubikub.expenseline.extraction;
 
-import be.rubikub.expenseline.costumEvents.TextExtractedEvent;
+import be.rubikub.expenseline.costumEvents.TextIntakeEvent;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -24,7 +24,7 @@ public class ReceiptExtractionService{
     }
 
     @EventListener
-    void onTextExtracted(TextExtractedEvent event) {
+    void onTextExtracted(TextIntakeEvent event) {
         ModelStrategy strategy = new ModelStrategy(event);
         log.info("Processing extracted text with small model first");
         ClassificationResult classification = null;

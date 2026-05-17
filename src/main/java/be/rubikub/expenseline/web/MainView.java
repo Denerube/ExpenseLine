@@ -30,6 +30,6 @@ public class MainView extends VerticalLayout {
         add(new Upload(inMemoryHandler));
     }
     private void processFile(byte[] data, UploadMetadata metadata){
-        intakeProcessor.processFile(data, metadata.contentType());
+        intakeProcessor.processFile(data, metadata.contentType(),metadata.contentType());
     }
 }

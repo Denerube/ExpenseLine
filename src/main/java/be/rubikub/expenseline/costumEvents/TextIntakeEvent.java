@@ -1,6 +1,10 @@
 package be.rubikub.expenseline.costumEvents;
 
-public record TextIntakeEvent(String text, String originalFileType) {
+import dev.langchain4j.data.document.Document;
+
+public record TextIntakeEvent(String text,
+                              String originalFileType,
+                              Document doc) {
 
     public int getCharCount(){
         return text.length();
@@ -9,6 +13,7 @@ public record TextIntakeEvent(String text, String originalFileType) {
     public int getWordtCount(){
         return text.split("\\s+").length;
     }
+
 
 }
 
