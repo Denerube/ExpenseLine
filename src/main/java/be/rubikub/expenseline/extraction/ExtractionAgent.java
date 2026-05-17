@@ -1,4 +1,4 @@
-package be.rubikub.expenseline.extraction.internal;
+package be.rubikub.expenseline.extraction;
 
 
 import dev.langchain4j.service.SystemMessage;

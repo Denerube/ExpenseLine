@@ -1,7 +1,6 @@
-package be.rubikub.expenseline.extraction.internal;
+package be.rubikub.expenseline.extraction;
 
 import be.rubikub.expenseline.costumEvents.TextExtractedEvent;
-import be.rubikub.expenseline.extraction.ReceiptExtractionServicePublic;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -11,7 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 @Service
-public class ReceiptExtractionService implements ReceiptExtractionServicePublic {
+public class ReceiptExtractionService{
 
     final Log log = LogFactory.getLog(ReceiptExtractionService.class);
     final ExtractionAgent smallAgent;
@@ -26,32 +25,39 @@ public class ReceiptExtractionService implements ReceiptExtractionServicePublic 
 
     @EventListener
     void onTextExtracted(TextExtractedEvent event) {
+        ModelStrategy strategy = new ModelStrategy(event);
         log.info("Processing extracted text with small model first");
-
+        ClassificationResult classification = null;
         // Try small model first
-        ClassificationResult classification = smallAgent.classifyDocument(event.text());
+        if (strategy.getStrategy() == ModelStrategy.ModelPicker.BIG) {
+                IO.println("Using large model");
+             classification = largeAgent.classifyDocument(event.text());
+
+        } else {
+                IO.println("Using small model");
+                classification = smallAgent.classifyDocument(event.text());
+        }
 
         switch (classification) {
             case OK -> process(event.text(), false);
             case NOK -> log.warn("Rejected non-receipt document");
             case NEEDS_REVIEW -> {
-                log.warn("Small model uncertain - escalating to large model");
-                // Fallback to large model
-                ClassificationResult largeModelResult = largeAgent.classifyDocument(event.text());
-
-                if (largeModelResult == ClassificationResult.OK) {
-                    log.info("Large model confirmed: processing document");
-                    process(event.text(), true);
+                if (strategy.getStrategy() == ModelStrategy.ModelPicker.BIG) {
+                    log.warn("Large model  uncertain/rejected - flagging for human review");
                 } else {
-                    log.warn("Large model also uncertain/rejected - flagging for human review");
+                    log.warn("Small model uncertain - escalating to large model");
+                    // Fallback to large model
+                    ClassificationResult largeModelResult = largeAgent.classifyDocument(event.text());
+
+                    if (largeModelResult == ClassificationResult.OK) {
+                        log.info("Large model confirmed: processing document");
+                        process(event.text(), true);
+                    } else {
+                        log.warn("Large model also uncertain/rejected - flagging for human review");
+                    }
                 }
             }
         }
-    }
-
-    @Override
-    public Optional<String> process(String text) {
-        return process(text, false);
     }
 
     private Optional<String> process(String text, boolean useLargeModel) {
