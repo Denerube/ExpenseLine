@@ -1,9 +1,7 @@
 package be.rubikub.expenseline.intake.internal;
 
 import ai.docling.serve.api.convert.request.ConvertDocumentRequest;
-import ai.docling.serve.api.convert.request.options.ConvertDocumentOptions;
-import ai.docling.serve.api.convert.request.options.OutputFormat;
-import ai.docling.serve.api.convert.request.options.TableFormerMode;
+import ai.docling.serve.api.convert.request.options.*;
 import ai.docling.serve.api.convert.request.source.FileSource;
 import ai.docling.serve.api.convert.response.InBodyConvertDocumentResponse;
 import ai.docling.serve.client.DoclingServeClientBuilderFactory;
@@ -79,13 +77,14 @@ class IntakeProcessor implements IntakeProcessorPublic {
                         .base64String(Base64.getEncoder().encodeToString(bytes))
                         .build())
                 .options(ConvertDocumentOptions.builder()
-                        .toFormat(OutputFormat.MARKDOWN)
+                        .toFormat(OutputFormat.DOCTAGS)
                         .tableMode(TableFormerMode.ACCURATE)
+                        .vlmPipelineModel(VlmModelType.GRANITE_VISION)
                         .build())
                 .build();
         InBodyConvertDocumentResponse response = (InBodyConvertDocumentResponse) doclingServeApi.convertSource(request);
-        System.out.println(response.getDocument().getMarkdownContent());
-        publicExtractedTest(response.getDocument().getMarkdownContent(), fileType,null);
+        System.out.println(response.getDocument().getDoctagsContent());
+        publicExtractedTest(response.getDocument().getDoctagsContent(), fileType,null);
     }
     private void publicExtractedTest(String text, String fileType, Document document){
         events.publishEvent(new TextIntakeEvent(text,fileType,document));
