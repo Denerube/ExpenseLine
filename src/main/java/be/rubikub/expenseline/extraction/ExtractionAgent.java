@@ -1,6 +1,7 @@
 package be.rubikub.expenseline.extraction;
 
 
+import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
@@ -15,11 +16,11 @@ interface ExtractionAgent {
         Respond with EXACTLY one of these values (no formatting, no markdown, no extra text):
         
         OK
-        NOK
-        NEEDS_REVIEW
+        NOKs
+        NEEDS_REVIEWs
         """)
     @UserMessage("Classify this document:\n\n{{text}}")
-    ClassificationResult classifyDocument(@V("text") String text);
+    ClassificationResult classifyDocument(@V("text") String text,@MemoryId int memoryId);
     
     @SystemMessage("""
         Extract receipt data in JSON format. Find these fields:
