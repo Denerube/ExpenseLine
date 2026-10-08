@@ -3,22 +3,22 @@ package be.rubikub.expenseline.config;
 
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
+import jakarta.enterprise.inject.Default;
+import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Named;
 import dev.langchain4j.http.client.jdk.JdkHttpClient;
+import org.atmosphere.inject.annotation.ApplicationScoped;
 
 
 import java.net.http.HttpClient;
 import java.time.Duration;
 
-@Configuration
+@ApplicationScoped
 public class ChatModelConfig {
 
-    @Bean
-    @Primary
-    @Qualifier("smallModel")
+    @Produces
+    @Default
+    @Named("smallModel")
     public ChatModel smallModel() {
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
@@ -39,8 +39,8 @@ public class ChatModelConfig {
                 .build();
     }
 
-    @Bean
-    @Qualifier("largeModel")
+    @Produces
+    @Named("largeModel")
     public ChatModel largeModel() {
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)

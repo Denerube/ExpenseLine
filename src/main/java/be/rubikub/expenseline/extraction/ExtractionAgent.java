@@ -20,6 +20,9 @@ interface ExtractionAgent {
         NEEDS_REVIEWs
         """)
     @UserMessage("Classify this document:\n\n{{text}}")
+    ClassificationResult classifyDocument(@V("text") String text);
+
+    @UserMessage("Classify this document:\n\n{{text}}")
     ClassificationResult classifyDocument(@V("text") String text,@MemoryId int memoryId);
     
     @SystemMessage("""

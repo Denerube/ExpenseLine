@@ -1,10 +1,13 @@
 plugins {
     java
-    id("org.springframework.boot") version "4.0.6"
-    id("io.spring.dependency-management") version "1.1.7"
+    id("io.quarkus")
 }
+
+val quarkusPlatformGroupId: String by project
+val quarkusPlatformArtifactId: String by project
+val quarkusPlatformVersion: String by project
+
 val vaadinVersion by extra("25.1.5")
-val springModulithVersion by extra("2.0.6")
 val tikaVersion by extra("3.3.0")
 val langChain4JVersionBeta by extra("1.14.1-beta24")
 val langChain4JVersion by extra("1.14.1")
@@ -17,7 +20,7 @@ description = "ExpenseLine"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -26,17 +29,19 @@ repositories {
 }
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter")
-    implementation("com.vaadin:vaadin-spring-boot-starter")
-    implementation("org.springframework.modulith:spring-modulith-starter-core")
-    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-spring-boot-starter
-    implementation("dev.langchain4j:langchain4j-spring-boot-starter:$langChain4JVersionBeta")
+    implementation(enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}"))
+    implementation(platform("com.vaadin:vaadin-bom:$vaadinVersion"))
+
+    implementation("io.quarkus:quarkus-arc")
+    implementation("io.quarkus:quarkus-rest")
+    implementation("io.quarkus:quarkus-jackson")
+    implementation("com.vaadin:vaadin-quarkus-extension:$vaadinVersion")
+
     // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-agentic
     implementation("dev.langchain4j:langchain4j-agentic:$langChain4JVersionBeta")
 
     // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-http-client-jdk
     implementation("dev.langchain4j:langchain4j-http-client-jdk:$langChain4JVersion")
-    // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-http-client-jdk
     runtimeOnly("dev.langchain4j:langchain4j-http-client-jdk:$langChain4JVersion")
     // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-open-ai
     implementation("dev.langchain4j:langchain4j-open-ai:$langChain4JVersion")
@@ -50,29 +55,10 @@ dependencies {
     implementation("ai.docling:docling-core:$doclingVersion")
     implementation("ai.docling:docling-serve-api:$doclingVersion")
     implementation("ai.docling:docling-serve-client:$doclingVersion")
-//    implementation ("io.arconia:arconia-docling-spring-boot-starter")
 
-
-    // Source: https://mvnrepository.com/artifact/tools.jackson.core/jackson-core
-    implementation("tools.jackson.core:jackson-core:3.2.2")
-
-
-
-
-    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-
-    developmentOnly("com.vaadin:vaadin-dev")
-
-}
-dependencyManagement {
-    imports {
-        mavenBom("com.vaadin:vaadin-bom:$vaadinVersion")
-        mavenBom("org.springframework.modulith:spring-modulith-bom:$springModulithVersion")
-    }
+    testImplementation("io.quarkus:quarkus-junit5")
 }
 
 tasks.withType<Test> {
-    useJUnitPlatform()
+    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
 }

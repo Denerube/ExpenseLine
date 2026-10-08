@@ -9,8 +9,9 @@ import be.rubikub.expenseline.costumEvents.TextIntakeEvent;
 import be.rubikub.expenseline.intake.IntakeProcessorPublic;
 
 import dev.langchain4j.data.document.Document;
-import jakarta.validation.constraints.Null;
-import org.apache.fontbox.cff.CFFParser;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.inject.Inject;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.HttpHeaders;
@@ -19,8 +20,6 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
 import org.xml.sax.SAXException;
 import ai.docling.serve.api.convert.request.options.ConvertDocumentOptions;
 import ai.docling.serve.api.DoclingServeApi;
@@ -32,13 +31,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Base64;
 
-@Service
+@ApplicationScoped
 class IntakeProcessor implements IntakeProcessorPublic {
 
     private final Tika tika = new Tika();
-    private final ApplicationEventPublisher events;
+    private final Event<TextIntakeEvent> events;
 
-    IntakeProcessor(ApplicationEventPublisher events) {
+    @Inject
+    IntakeProcessor(Event<TextIntakeEvent> events) {
         this.events = events;
     }
 
@@ -87,7 +87,7 @@ class IntakeProcessor implements IntakeProcessorPublic {
         publicExtractedTest(response.getDocument().getDoctagsContent(), fileType,null);
     }
     private void publicExtractedTest(String text, String fileType, Document document){
-        events.publishEvent(new TextIntakeEvent(text,fileType,document));
+        events.fire(new TextIntakeEvent(text,fileType,document));
     }
 
      private String extractText (byte[] bytes, String contentType) throws TikaException, IOException, SAXException  {

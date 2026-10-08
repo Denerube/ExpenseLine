@@ -1,11 +1,9 @@
 package be.rubikub.expenseline.costumEvents.models;
 
 import dev.langchain4j.model.output.structured.Description;
-import org.apache.james.mime4j.dom.datetime.DateTime;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 

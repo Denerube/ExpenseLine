@@ -3,16 +3,17 @@ package be.rubikub.expenseline.extraction;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Named;
+import org.atmosphere.inject.annotation.ApplicationScoped;
 
-@Configuration
+
+@ApplicationScoped
 class AgentConfig {
 
-    @Bean
-    @Qualifier("smallAgent")
-    ExtractionAgent smallAgent(@Qualifier("smallModel") ChatModel smallModel) {
+    @Produces
+    @Named("smallAgent")
+    ExtractionAgent smallAgent(@Named("smallModel") ChatModel smallModel) {
         return AiServices.create(ExtractionAgent.class, smallModel);
 //        return AiServices.builder(ExtractionAgent.class)
 //                .chatModel(smallModel)
@@ -21,9 +22,9 @@ class AgentConfig {
 
     }
 
-    @Bean
-    @Qualifier("largeAgent")
-    ExtractionAgent largeAgent(@Qualifier("largeModel") ChatModel largeModel) {
+    @Produces
+    @Named("largeAgent")
+    ExtractionAgent largeAgent(@Named("largeModel") ChatModel largeModel) {
         return AiServices.create(ExtractionAgent.class, largeModel);
     }
 }

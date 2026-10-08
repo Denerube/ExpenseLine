@@ -1,41 +1,42 @@
 package be.rubikub.expenseline.extraction;
 
 import be.rubikub.expenseline.costumEvents.TextIntakeEvent;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Service;
+
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import org.atmosphere.inject.annotation.ApplicationScoped;
+import org.jboss.logging.Logger;
 
 import java.util.Optional;
 
-@Service
-public class ReceiptExtractionService{
+@ApplicationScoped
+public class ReceiptExtractionService {
 
-    final Log log = LogFactory.getLog(ReceiptExtractionService.class);
+    private static final Logger log = Logger.getLogger(ReceiptExtractionService.class);
     final ExtractionAgent smallAgent;
     final ExtractionAgent largeAgent;
 
+    @Inject
     public ReceiptExtractionService(
-            @Qualifier("smallAgent") ExtractionAgent smallAgent,
-            @Qualifier("largeAgent") ExtractionAgent largeAgent) {
+            @Named("smallAgent") ExtractionAgent smallAgent,
+            @Named("largeAgent") ExtractionAgent largeAgent) {
         this.smallAgent = smallAgent;
         this.largeAgent = largeAgent;
     }
 
-    @EventListener
-    void onTextExtracted(TextIntakeEvent event) {
+    void onTextExtracted(@Observes TextIntakeEvent event) {
         ModelStrategy strategy = new ModelStrategy(event);
         log.info("Processing extracted text with small model first");
         ClassificationResult classification = null;
         // Try small model first
         if (strategy.getStrategy() == ModelStrategy.ModelPicker.BIG) {
-                IO.println("Using large model");
-             classification = largeAgent.classifyDocument(event.text());
+            System.out.println("Using large model");
+            classification = largeAgent.classifyDocument(event.text());
 
         } else {
-                IO.println("Using small model");
-                classification = smallAgent.classifyDocument(event.text());
+            System.out.println("Using small model");
+            classification = smallAgent.classifyDocument(event.text());
         }
 
         switch (classification) {
@@ -81,8 +82,8 @@ public class ReceiptExtractionService{
             log.info("Small model confident in extraction");
         }
 
-        IO.println("Extracted with " + modelType + ":");
-        IO.println(extracted);
+        System.out.println("Extracted with " + modelType + ":");
+        System.out.println(extracted);
 
         return Optional.of(extracted);
     }

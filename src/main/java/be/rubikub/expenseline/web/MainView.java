@@ -8,14 +8,10 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.streams.InMemoryUploadHandler;
 import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.server.streams.UploadMetadata;
-import org.springframework.stereotype.Component;
-import org.springframework.web.service.invoker.HttpRequestValues;
-
-import java.io.File;
+import jakarta.inject.Inject;
 
 
 @Route()
-@Component
 public class MainView extends VerticalLayout {
 
     private final IntakeProcessorPublic intakeProcessor;
@@ -24,6 +20,8 @@ public class MainView extends VerticalLayout {
             .inMemory((metadata, data) -> {
                 processFile(data, metadata);
             });
+
+    @Inject
     public MainView(IntakeProcessorPublic intakeProcessor){
         this.intakeProcessor = intakeProcessor;
         add(new Text("welcome to MainView"));

@@ -1,5 +1,4 @@
 import '@vaadin/vertical-layout/src/vaadin-vertical-layout.js';
-import '@vaadin/field-highlighter/src/vaadin-field-highlighter.js';
 import '@vaadin/common-frontend/ConnectionIndicator.js';
 import '@vaadin/accordion/src/vaadin-accordion.js';
 import '@vaadin/details/src/vaadin-details.js';
@@ -30,6 +29,7 @@ import 'Frontend/generated/jar-resources/vaadin-time-picker/timepickerConnector.
 import 'Frontend/generated/jar-resources/vaadin-time-picker/helpers.js';
 import '@vaadin/dialog/src/vaadin-dialog.js';
 import 'Frontend/generated/jar-resources/dndConnector.js';
+import '@vaadin/field-highlighter/src/vaadin-field-highlighter.js';
 import '@vaadin/form-layout/src/vaadin-form-layout.js';
 import '@vaadin/form-layout/src/vaadin-form-item.js';
 import '@vaadin/form-layout/src/vaadin-form-row.js';
@@ -79,7 +79,6 @@ import '@vaadin/number-field/src/vaadin-number-field.js';
 import '@vaadin/password-field/src/vaadin-password-field.js';
 import '@vaadin/text-area/src/vaadin-text-area.js';
 import '@vaadin/text-field/src/vaadin-text-field.js';
-import 'Frontend/generated/jar-resources/lit-renderer.ts';
 import '@vaadin/grid/src/vaadin-grid-tree-toggle.js';
 import 'Frontend/generated/jar-resources/treeGridConnector.ts';
 import '@vaadin/upload/src/vaadin-upload.js';
@@ -89,7 +88,9 @@ import '@vaadin/upload/src/vaadin-upload-file-list.js';
 import 'Frontend/generated/jar-resources/vaadin-upload-manager-connector.ts';
 import '@vaadin/virtual-list/src/vaadin-virtual-list.js';
 import 'Frontend/generated/jar-resources/virtualListConnector.js';
+import 'Frontend/generated/jar-resources/lit-renderer.ts';
 import '@vaadin/vaadin-lumo-styles/vaadin-iconset.js';
+import 'Frontend/generated/jar-resources/copilot-version.js';
 const loadOnDemand = (key) => { return Promise.resolve(0); }
 window.Vaadin = window.Vaadin || {};
 window.Vaadin.Flow = window.Vaadin.Flow || {};
