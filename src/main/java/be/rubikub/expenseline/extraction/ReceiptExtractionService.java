@@ -1,6 +1,7 @@
 package be.rubikub.expenseline.extraction;
 
 import be.rubikub.expenseline.costumEvents.TextIntakeEvent;
+import be.rubikub.expenseline.costumEvents.models.Receipt;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
@@ -112,9 +113,8 @@ public class ReceiptExtractionService {
                     String activeModel = state.activeModel().orElse("none");
                     switch (status) {
                         case "SUCCESS" -> {
-                            String extracted = state.extractedData().orElse("");
                             log.infof("Receipt extraction workflow SUCCEEDED using [%s model]", activeModel);
-                            log.infof("Extracted Data:\n%s", extracted);
+                            log.infof("Extracted Data:\n%s", state.extractedData().orElse(null));
                         }
                         case "REJECTED_NON_RECEIPT" -> {
                             log.warn("Receipt extraction workflow finished: Document REJECTED (non-receipt)");
@@ -157,13 +157,12 @@ public class ReceiptExtractionService {
     }
 
     /**
-     * Helper method to extract text and return the resulting JSON string,
-     * maintaining backward compatibility if needed.
+     * Helper method to extract text and return the resulting Receipt.
      *
      * @param text Raw document text
-     * @return Optional containing the extracted JSON data if successful
+     * @return Optional containing the extracted Receipt if successful
      */
-    public Optional<String> process(String text) {
+    public Optional<Receipt> process(String text) {
         return executeGraph(text)
                 .filter(state -> "SUCCESS".equals(state.status().orElse(null)))
                 .flatMap(ExtractionGraphBuilder.State::extractedData);

@@ -1,6 +1,7 @@
 package be.rubikub.expenseline.config;
 
 
+import dev.langchain4j.model.chat.Capability;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import jakarta.enterprise.inject.Default;
@@ -36,6 +37,7 @@ public class ChatModelConfig {
                 .logRequests(true)
                 .logResponses(true)
                 .temperature(0.0)
+                .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
                 .build();
     }
 
@@ -58,6 +60,7 @@ public class ChatModelConfig {
                 .logRequests(true)
                 .logResponses(true)
                 .temperature(0.0)
+                .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
                 .build();
     }
 }

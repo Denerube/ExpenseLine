@@ -1,11 +1,15 @@
 package be.rubikub.expenseline.extraction;
 
+import be.rubikub.expenseline.costumEvents.models.Receipt;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphStateException;
 import org.bsc.langgraph4j.StateGraph;
 import org.bsc.langgraph4j.state.AgentState;
 import org.jboss.logging.Logger;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,55 +52,27 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  * 2. VISUAL WORKFLOW OF THIS EXTRACTION GRAPH
  * ----------------------------------------------------------------------------------------------
  *
- *                    +-------------------+
- *                    |      [START]      |
- *                    +---------+---------+
- *                              |
- *                              v
- *                   +---------------------+
- *                   | determine_strategy  | (inspects character count)
- *                   +----------+----------+
- *                              |
- *             +----------------+----------------+
- *             | strategy == SMALL               | strategy == BIG
- *             v                                 v
- *   +-------------------+             +-------------------+
- *   |   classify_small  |             |   classify_large  |<----------------+
- *   +---------+---------+             +---------+---------+                 |
- *             |                                 |                           |
- *      +------+------+                   +------+------+                    |
- *      |      |      |                   |      |      |                    |
- *     NOK     OK  NEEDS_REVIEW          NOK     OK  NEEDS_REVIEW            |
- *      |      |      |                   |      |      |                    |
- *      |      |      +-------------------+      |      v                    |
- *      |      |    (escalate to large)          |  +---------------------+  |
- *      |      v                                 |  | handle_needs_review |  |
- *      |  +---------------+                     |  +----------+----------+  |
- *      |  | extract_small |                     |             |             |
- *      |  +-------+-------+                     |             v             |
- *      |          |                             |          [ END ]          |
- *      |          v                             |                           |
- *      |  +---------------+                     |                           |
- *      |  | assess_small  |                     |                           |
- *      |  +-------+-------+                     |                           |
- *      |          |                             |                           |
- *      |     +----+----+                        |                           |
- *      | COMPLETE     INCOMPLETE (retry)        |                           |
- *      |     |         +------------------------+                           |
- *      |     |                                  v                           |
- *      |     |                        +-------------------+                 |
- *      |     |                        |   extract_large   |                 |
- *      |     |                        +---------+---------+                 |
- *      |     |                                  |                           |
- *      |     +----------------+                 |                           |
- *      |                      |                 |                           |
- *      v                      v                 v                           |
- *  +-----------------+  +-------------------------------+                   |
- *  | handle_rejected |  |        finish_success         |                   |
- *  +--------+--------+  +---------------+---------------+                   |
- *           |                           |                                   |
- *           v                           v                                   |
- *        [ END ]                     [ END ]                                |
+ *   [START] -> determine_strategy  (inspects character count)
+ *                 |
+ *                 |-- SMALL --> classify_small
+ *                 |               |-- NOK ----------> handle_rejected -> [END]
+ *                 |               |-- NEEDS_REVIEW -> classify_large  (escalate)
+ *                 |               '-- OK -----------> extract_small
+ *                 |                                     |-- parse failed ------> extract_large
+ *                 |                                     '-> validate_small  (deterministic Java checks)
+ *                 |                                           |-- invalid -----> extract_large
+ *                 |                                           '-> assess_small  (LLM grounding check)
+ *                 |                                                 |-- INCOMPLETE -> extract_large
+ *                 |                                                 '-- COMPLETE ---> finish_success -> [END]
+ *                 |
+ *                 '-- BIG ----> classify_large
+ *                                 |-- NOK ----------> handle_rejected -> [END]
+ *                                 |-- NEEDS_REVIEW -> handle_needs_review -> [END]
+ *                                 '-- OK -----------> extract_large
+ *                                                       |-- parse failed ------> handle_needs_review
+ *                                                       '-> validate_large  (deterministic Java checks)
+ *                                                             |-- invalid -----> handle_needs_review
+ *                                                             '-- valid -------> finish_success -> [END]
  *
  * ==============================================================================================
  */
@@ -109,11 +85,15 @@ public class ExtractionGraphBuilder {
     public static final String NODE_CLASSIFY_SMALL = "classify_small";
     public static final String NODE_CLASSIFY_LARGE = "classify_large";
     public static final String NODE_EXTRACT_SMALL = "extract_small";
+    public static final String NODE_VALIDATE_SMALL = "validate_small";
     public static final String NODE_ASSESS_SMALL = "assess_small";
     public static final String NODE_EXTRACT_LARGE = "extract_large";
+    public static final String NODE_VALIDATE_LARGE = "validate_large";
     public static final String NODE_HANDLE_REJECTED = "handle_rejected";
     public static final String NODE_HANDLE_NEEDS_REVIEW = "handle_needs_review";
     public static final String NODE_FINISH_SUCCESS = "finish_success";
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final ExtractionAgent smallAgent;
     private final ExtractionAgent largeAgent;
@@ -161,10 +141,14 @@ public class ExtractionGraphBuilder {
         public Optional<ExtractionConfidence> confidence() {
             return value("confidence");
         }
-
-        /** The extracted receipt JSON data. */
-        public Optional<String> extractedData() {
+        /** The extracted receipt. Absent when extraction failed to produce a parsable Receipt. */
+        public Optional<Receipt> extractedData() {
             return value("extractedData");
+        }
+
+        /** Problems found by the deterministic {@link ReceiptValidator} checks (empty = valid). */
+        public List<String> validationErrors() {
+            return this.<List<String>>value("validationErrors").orElse(List.of());
         }
 
         /** The name or tier of the model that performed the final extraction. */
@@ -238,21 +222,21 @@ public class ExtractionGraphBuilder {
         }));
 
         // Node 4: Extract receipt data with Small Model
-        workflow.addNode(NODE_EXTRACT_SMALL, node_async(state -> {
-            String text = state.text().orElse("");
-            log.infof("Node [%s]: Extracting receipt data using small model", NODE_EXTRACT_SMALL);
-            String extracted = smallAgent.extract(text);
+        // A parse failure (invalid JSON, "12,50" into a BigDecimal, ...) is not fatal: any previous
+        // Receipt is removed from the state and the conditional edge routes to the large model.
+        workflow.addNode(NODE_EXTRACT_SMALL, node_async(state ->
+                extract(smallAgent, "small", NODE_EXTRACT_SMALL, state.text().orElse(""))));
 
-            return Map.of(
-                    "extractedData", extracted,
-                    "activeModel", "small"
-            );
-        }));
+        // Node 5: Deterministic validation of the small model's Receipt (arithmetic, required fields)
+        workflow.addNode(NODE_VALIDATE_SMALL, node_async(state -> validate(NODE_VALIDATE_SMALL, state)));
 
-        // Node 5: Small Model Self-Assessment
+        // Node 6: Small Model Self-Assessment
+        // The arithmetic is already checked in Java, so the LLM only judges whether the values are
+        // grounded in the original text. The Receipt is serialized back to JSON so the model sees
+        // exactly what was parsed.
         workflow.addNode(NODE_ASSESS_SMALL, node_async(state -> {
             String text = state.text().orElse("");
-            String extracted = state.extractedData().orElse("");
+            String extracted = toJson(state.extractedData().orElse(null));
             log.infof("Node [%s]: Small model assessing its own extraction quality", NODE_ASSESS_SMALL);
             ExtractionConfidence confidence = smallAgent.assessExtraction(text, extracted);
             log.infof("Node [%s]: Small model confidence assessment = [%s]", NODE_ASSESS_SMALL, confidence);
@@ -260,37 +244,32 @@ public class ExtractionGraphBuilder {
             return Map.of("confidence", confidence);
         }));
 
-        // Node 6: Extract receipt data with Large Model (fallback / retry / direct)
-        workflow.addNode(NODE_EXTRACT_LARGE, node_async(state -> {
-            String text = state.text().orElse("");
-            log.infof("Node [%s]: Extracting receipt data using large model", NODE_EXTRACT_LARGE);
-            String extracted = largeAgent.extract(text);
+        // Node 7: Extract receipt data with Large Model (fallback / retry / direct)
+        workflow.addNode(NODE_EXTRACT_LARGE, node_async(state ->
+                extract(largeAgent, "large", NODE_EXTRACT_LARGE, state.text().orElse(""))));
 
-            return Map.of(
-                    "extractedData", extracted,
-                    "activeModel", "large"
-            );
-        }));
+        // Node 8: Deterministic validation of the large model's Receipt
+        workflow.addNode(NODE_VALIDATE_LARGE, node_async(state -> validate(NODE_VALIDATE_LARGE, state)));
 
-        // Node 7: Terminal Node - Rejected Document (NOK)
+        // Node 9: Terminal Node - Rejected Document (NOK)
         workflow.addNode(NODE_HANDLE_REJECTED, node_async(state -> {
             log.warnf("Node [%s]: Rejected non-receipt document", NODE_HANDLE_REJECTED);
             return Map.of("status", "REJECTED_NON_RECEIPT");
         }));
 
-        // Node 8: Terminal Node - Flagged for Human Review (NEEDS_REVIEW from large model)
+        // Node 10: Terminal Node - Flagged for Human Review
+        // (large model uncertain, no parsable Receipt, or the large model's Receipt failed validation)
         workflow.addNode(NODE_HANDLE_NEEDS_REVIEW, node_async(state -> {
-            log.warnf("Node [%s]: Model uncertain/rejected - flagged for human review", NODE_HANDLE_NEEDS_REVIEW);
+            log.warnf("Node [%s]: Model uncertain/rejected - flagged for human review %s",
+                    NODE_HANDLE_NEEDS_REVIEW, state.validationErrors());
             return Map.of("status", "FLAGGED_FOR_HUMAN_REVIEW");
         }));
 
-        // Node 9: Terminal Node - Successfully Extracted
+        // Node 11: Terminal Node - Successfully Extracted
         workflow.addNode(NODE_FINISH_SUCCESS, node_async(state -> {
             String model = state.activeModel().orElse("unknown");
-            String data = state.extractedData().orElse("");
             log.infof("Node [%s]: Extraction successful with %s model!", NODE_FINISH_SUCCESS, model);
-            System.out.println("Extracted with " + model + " model:");
-            System.out.println(data);
+            log.infof("Extracted with %s model:%n%s", model, toJson(state.extractedData().orElse(null)));
             return Map.of("status", "SUCCESS");
         }));
 
@@ -301,12 +280,6 @@ public class ExtractionGraphBuilder {
 
         // Entry point: When the graph is invoked, start at determine_strategy
         workflow.addEdge(START, NODE_DETERMINE_STRATEGY);
-
-        // After extracting with small model, always run self-assessment
-        workflow.addEdge(NODE_EXTRACT_SMALL, NODE_ASSESS_SMALL);
-
-        // After extracting with large model, transition directly to finish_success
-        workflow.addEdge(NODE_EXTRACT_LARGE, NODE_FINISH_SUCCESS);
 
         // Terminal nodes route to the special END state
         workflow.addEdge(NODE_FINISH_SUCCESS, END);
@@ -377,7 +350,55 @@ public class ExtractionGraphBuilder {
                 )
         );
 
-        // Conditional Edge D: Branch based on Small Model Self-Assessment Quality
+        // Conditional Edge D: Did the small model produce a parsable Receipt?
+        // - PARSED -> run deterministic validation
+        // - FAILED -> retry extraction using large model
+        workflow.addConditionalEdges(
+                NODE_EXTRACT_SMALL,
+                edge_async(state -> state.extractedData().isPresent() ? "PARSED" : "FAILED"),
+                Map.of(
+                        "PARSED", NODE_VALIDATE_SMALL,
+                        "FAILED", NODE_EXTRACT_LARGE
+                )
+        );
+
+        // Conditional Edge E: Branch based on deterministic validation of the small model's Receipt
+        // - VALID -> let the small model assess grounding against the original text
+        // - INVALID -> retry extraction using large model
+        workflow.addConditionalEdges(
+                NODE_VALIDATE_SMALL,
+                edge_async(state -> state.validationErrors().isEmpty() ? "VALID" : "INVALID"),
+                Map.of(
+                        "VALID", NODE_ASSESS_SMALL,
+                        "INVALID", NODE_EXTRACT_LARGE
+                )
+        );
+
+        // Conditional Edge F: Did the large model produce a parsable Receipt?
+        // - PARSED -> run deterministic validation
+        // - FAILED -> no model left to escalate to, flag for human review
+        workflow.addConditionalEdges(
+                NODE_EXTRACT_LARGE,
+                edge_async(state -> state.extractedData().isPresent() ? "PARSED" : "FAILED"),
+                Map.of(
+                        "PARSED", NODE_VALIDATE_LARGE,
+                        "FAILED", NODE_HANDLE_NEEDS_REVIEW
+                )
+        );
+
+        // Conditional Edge G: Branch based on deterministic validation of the large model's Receipt
+        // - VALID -> finish!
+        // - INVALID -> flag for human review (the Receipt stays in the state for the reviewer)
+        workflow.addConditionalEdges(
+                NODE_VALIDATE_LARGE,
+                edge_async(state -> state.validationErrors().isEmpty() ? "VALID" : "INVALID"),
+                Map.of(
+                        "VALID", NODE_FINISH_SUCCESS,
+                        "INVALID", NODE_HANDLE_NEEDS_REVIEW
+                )
+        );
+
+        // Conditional Edge H: Branch based on Small Model Self-Assessment Quality
         // - COMPLETE -> extraction is accurate and complete, finish!
         // - INCOMPLETE -> retry extraction using large model
         workflow.addConditionalEdges(
@@ -399,5 +420,38 @@ public class ExtractionGraphBuilder {
         // Validates graph integrity (unreachable nodes, missing targets, cycles) and returns
         // an immutable, thread-safe executable graph.
         return workflow.compile();
+    }
+
+    /** Runs the extraction; on a parse failure any previous Receipt is removed from the state. */
+    private static Map<String, Object> extract(ExtractionAgent agent, String model, String node, String text) {
+        log.infof("Node [%s]: Extracting receipt data using %s model", node, model);
+        try {
+            Receipt receipt = agent.extract(text);
+            if (receipt != null) {
+                return Map.of("extractedData", receipt, "activeModel", model);
+            }
+            log.warnf("Node [%s]: %s model returned no receipt", node, model);
+        } catch (RuntimeException e) {
+            log.warnf(e, "Node [%s]: %s model output could not be parsed into a Receipt", node, model);
+        }
+        return Map.of("extractedData", AgentState.MARK_FOR_REMOVAL, "activeModel", model);
+    }
+
+    private static Map<String, Object> validate(String node, State state) {
+        List<String> errors = ReceiptValidator.validate(state.extractedData().orElse(null));
+        if (errors.isEmpty()) {
+            log.infof("Node [%s]: Receipt passed validation", node);
+        } else {
+            log.warnf("Node [%s]: Receipt failed validation: %s", node, errors);
+        }
+        return Map.of("validationErrors", errors);
+    }
+
+    private static String toJson(Receipt receipt) {
+        try {
+            return JSON.writeValueAsString(receipt);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Could not serialize receipt", e);
+        }
     }
 }
