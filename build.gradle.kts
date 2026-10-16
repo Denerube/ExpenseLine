@@ -37,6 +37,9 @@ dependencies {
     implementation("io.quarkus:quarkus-jackson")
     implementation("com.vaadin:vaadin-quarkus-extension:$vaadinVersion")
 
+    // Source: https://mvnrepository.com/artifact/org.bsc.langgraph4j/langgraph4j-core
+    implementation("org.bsc.langgraph4j:langgraph4j-core:1.9.4")
+
     // Source: https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-agentic
     implementation("dev.langchain4j:langchain4j-agentic:$langChain4JVersionBeta")
 

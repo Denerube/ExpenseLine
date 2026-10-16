@@ -15,7 +15,6 @@ public class ModelStrategy {
         this.textIntakeEvent = textIntakeEvent;
         this.determineStrategy();
     }
-
     private void determineStrategy() {
         strategy = ModelPicker.SMALL;
         if (textIntakeEvent.getCharCount() > 5000) {
