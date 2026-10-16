@@ -1,6 +1,6 @@
 package be.rubikub.expenseline.extraction;
 
-enum ExtractionConfidence {
+public enum ExtractionConfidence {
     COMPLETE,
     INCOMPLETE
 }

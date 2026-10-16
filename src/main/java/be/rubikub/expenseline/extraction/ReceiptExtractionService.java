@@ -6,7 +6,9 @@ import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.bsc.langgraph4j.CompiledGraph;
+import org.bsc.langgraph4j.GraphInput;
 import org.bsc.langgraph4j.GraphStateException;
+import org.bsc.langgraph4j.RunnableConfig;
 import org.jboss.logging.Logger;
 
 import java.util.Map;
@@ -81,11 +83,11 @@ public class ReceiptExtractionService {
      * How LangGraph4j Execution Works Here:
      * ------------------------------------------------------------------------------------------
      * 1. PREPARE INPUT STATE:
-     *    LangGraph expects an initial Map<String, Object> representing starting state keys.
-     *    Here we provide {"text": event.text()}.
+     *    LangGraph expects an initial GraphInput representing starting state keys.
+     *    Here we provide GraphInput.args(Map.of("text", event.text())).
      *
      * 2. INVOKE GRAPH:
-     *    `extractionGraph.invoke(inputs)` starts execution at `StateGraph.START`.
+     *    `extractionGraph.invoke(GraphInput.args(inputs), RunnableConfig.builder().build())` starts execution at `StateGraph.START`.
      *    It traverses nodes and evaluates conditional edges asynchronously until reaching
      *    `StateGraph.END`, producing the final converged `ExtractionGraphBuilder.State`.
      *
@@ -108,7 +110,6 @@ public class ReceiptExtractionService {
                 state -> {
                     String status = state.status().orElse("UNKNOWN");
                     String activeModel = state.activeModel().orElse("none");
-
                     switch (status) {
                         case "SUCCESS" -> {
                             String extracted = state.extractedData().orElse("");
@@ -143,13 +144,16 @@ public class ReceiptExtractionService {
             return Optional.empty();
         }
 
-        // LangGraph4j takes an initial Map of state properties
+        // LangGraph4j takes an initial GraphInput wrapping state properties and RunnableConfig
         Map<String, Object> initialInputs = Map.of(
                 "text", text
         );
 
         // Run the graph to completion (from START to END)
-        return extractionGraph.invoke(initialInputs);
+        return extractionGraph.invoke(
+                GraphInput.args(initialInputs),
+                RunnableConfig.builder().build()
+        );
     }
 
     /**
